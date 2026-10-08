@@ -7,8 +7,9 @@ import type { CaptionStyle, ClipPlan, CropStrategy, Transcript, Word } from "../
 /** Varsayılan strateji: ortadan 9:16 kırpma. Yüz/konuşmacı takibi için bu arayüzü uygula. */
 export class CenterCrop implements CropStrategy {
   filter(w: number, h: number): string {
-    if (h >= w) return "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920";
-    return "crop=trunc(ih*9/16/2)*2:ih,scale=1080:1920";
+    const H = Number(process.env.OUTPUT_HEIGHT) || 1280, W = Math.round(H * 9 / 16 / 2) * 2; // varsayılan 720x1280 (hızlı); 1080x1920 için OUTPUT_HEIGHT=1920
+    if (h >= w) return `scale=${W}:${H}:flags=fast_bilinear:force_original_aspect_ratio=increase,crop=${W}:${H}`;
+    return `crop=trunc(ih*9/16/2)*2:ih,scale=${W}:${H}:flags=fast_bilinear`;
   }
 }
 
