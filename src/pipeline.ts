@@ -31,6 +31,13 @@ function dropOverlaps(ps: ClipPlan[]): ClipPlan[] {
   return out;
 }
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`${label} ${Math.round(ms / 1000)} saniyede bitmedi (zaman aşımı).`)), ms);
+    p.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
+  });
+}
+
 export function newJob(id: string, url: string, style: CaptionStyle, dir: string): Job {
   return { id, url, status: "running", steps: STEP_LABELS.map(label => ({ label, state: "waiting" })), clips: [], style, dir, plans: [] };
 }
@@ -41,6 +48,7 @@ export async function runPipeline(job: Job, d: Deps) {
   const step = (i: number) => {
     if (i > 0) job.steps[i - 1].state = "done";
     if (job.steps[i]) job.steps[i].state = "active";
+    console.log(`[${job.id.slice(0, 8)}] adım ${i + 1}/${STEP_LABELS.length}: ${STEP_LABELS[i]}`);
   };
   try {
     const src = job.src ?? d.source;
@@ -51,7 +59,7 @@ export async function runPipeline(job: Job, d: Deps) {
     step(3); job.transcript = await d.stt.transcribe(audio);
     await fs.writeFile(path.join(job.dir, "transcript.json"), JSON.stringify(job.transcript, null, 1));
     step(4);
-    const raw = await d.ai.findClips(job.transcript, job.meta);
+    const raw = await withTimeout(d.ai.findClips(job.transcript, job.meta), Number(process.env.ANALYSIS_TIMEOUT_MS) || 240000, "Klip analizi");
     const dur = job.meta.duration, transcript = job.transcript;
     const fitted = raw.filter(c => Number(c.end) > Number(c.start)).map(c => fitClip(c, transcript, dur))
       .filter(c => c.end - c.start >= Math.min(15, dur * 0.5)).sort((a, b) => b.viralScore - a.viralScore);
