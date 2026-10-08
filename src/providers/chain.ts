@@ -1,4 +1,4 @@
-import { withRetry, analysisPrompt } from "./gemini.js";
+import { withRetry, analysisPrompt, llmTimeout } from "./gemini.js";
 import type { AIAnalysisProvider, ClipPlan, Segment, Transcript, TranscriptionProvider, VideoMeta } from "./types.js";
 
 const msg = (e: any) => String(e?.message ?? e).slice(0, 220);
@@ -61,7 +61,7 @@ export class OpenAICompatAnalysis implements AIAnalysisProvider {
 
   private async chat(model: string, prompt: string): Promise<string> {
     const r = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
+      method: "POST", signal: AbortSignal.timeout(llmTimeout()),
       headers: { Authorization: `Bearer ${this.key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ model, messages: [{ role: "user", content: prompt }], temperature: 0.3 }),
     });

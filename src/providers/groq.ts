@@ -19,7 +19,7 @@ export class GroqTranscription implements TranscriptionProvider {
     form.append("timestamp_granularities[]", "word");
     form.append("timestamp_granularities[]", "segment");
     const r = await fetch(`${base}/openai/v1/audio/transcriptions`, {
-      method: "POST", headers: { Authorization: `Bearer ${this.key}` }, body: form,
+      method: "POST", signal: AbortSignal.timeout(Number(process.env.STT_TIMEOUT_MS) || 300000), headers: { Authorization: `Bearer ${this.key}` }, body: form,
     });
     const j: any = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(`Groq ${r.status}: ${j?.error?.message ?? JSON.stringify(j).slice(0, 200)}`);

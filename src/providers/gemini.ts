@@ -6,6 +6,7 @@ import type { AIAnalysisProvider, ClipPlan, Segment, Transcript, TranscriptionPr
 
 const CHUNK_SEC = 1200; // kelime zaman damgası açıkken ses başına limit 30 dk; 20 dk'lık parçalara böleriz
 
+export const llmTimeout = () => Number(process.env.LLM_TIMEOUT_MS) || 60000;
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 const transient = (e: any) => /503|429|UNAVAILABLE|KULLANILAMAZ|overload|high demand|yüksek talep|RESOURCE_EXHAUSTED|fetch failed/i.test(String(e?.message ?? e));
 /** Geçici hatalarda (503/429/aşırı yük) artan bekleme ile yeniden dener. */
@@ -64,7 +65,7 @@ export async function callTranscribe(fileUri: string, mimeType: string): Promise
   const base = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
   const model = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
   const r = await fetch(`${base}/v1beta/models/${model}:generateContent`, {
-    method: "POST",
+    method: "POST", signal: AbortSignal.timeout(Number(process.env.STT_TIMEOUT_MS) || 300000),
     headers: { "x-goog-api-key": process.env.GEMINI_API_KEY || "", "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ fileData: { fileUri, mimeType } }] }],
@@ -119,11 +120,13 @@ export class GeminiAnalysis implements AIAnalysisProvider {
     const wanted = (process.env.GEMINI_ANALYSIS_MODEL || "").split(",").map(x => x.trim()).filter(Boolean);
     const models = [...new Set([...wanted, ...FALLBACK_MODELS])];
     let last: any;
+    const deadline = Date.now() + (Number(process.env.ANALYSIS_BUDGET_MS) || 120000);
     for (const model of models) {
+      if (Date.now() > deadline) break;
       try {
         const res = await withRetry(() => this.ai.models.generateContent({
-          model, contents: analysisPrompt(t, meta), config: { responseMimeType: "application/json" },
-        }), 3);
+          model, contents: analysisPrompt(t, meta), config: { responseMimeType: "application/json", httpOptions: { timeout: llmTimeout() } },
+        }), 2);
         const m = (res.text ?? "").match(/\[[\s\S]*\]/);
         if (!m) throw new Error("Gemini geçerli JSON döndürmedi.");
         return JSON.parse(m[0]) as ClipPlan[];
