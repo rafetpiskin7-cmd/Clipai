@@ -46,6 +46,23 @@ async function uploadAudio(ai: GoogleGenAI, file: string) {
   return f;
 }
 
+/** SDK yeni alanları (audioTranscriptionConfig) silebildiği için isteği doğrudan REST ile atıyoruz. */
+export async function callTranscribe(fileUri: string, mimeType: string): Promise<any> {
+  const base = process.env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com";
+  const model = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
+  const r = await fetch(`${base}/v1beta/models/${model}:generateContent`, {
+    method: "POST",
+    headers: { "x-goog-api-key": process.env.GEMINI_API_KEY || "", "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ fileData: { fileUri, mimeType } }] }],
+      generationConfig: { audioTranscriptionConfig: { wordTimestamp: true } },
+    }),
+  });
+  const json: any = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`Gemini ${r.status}: ${json?.error?.message ?? JSON.stringify(json).slice(0, 300)}`);
+  return json;
+}
+
 export class GeminiTranscription implements TranscriptionProvider {
   private ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   async transcribe(audioPath: string): Promise<Transcript> {
@@ -55,12 +72,10 @@ export class GeminiTranscription implements TranscriptionProvider {
     const all: Word[] = [];
     for (let i = 0; i < chunks.length; i++) {
       const up = await uploadAudio(this.ai, path.join(dir, chunks[i]));
-      const resp = await this.ai.models.generateContent({
-        model: process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe",
-        contents: [createPartFromUri(up.uri!, up.mimeType!)],
-        config: { audioTranscriptionConfig: { wordTimestamp: true } } as any,
-      });
-      all.push(...extractWords(resp, i * CHUNK_SEC));
+      const resp = await callTranscribe(up.uri!, up.mimeType!);
+      const got = extractWords(resp, i * CHUNK_SEC);
+      if (!got.length) throw new Error("Gemini kelime zaman damgası döndürmedi. Cevap: " + JSON.stringify(resp).slice(0, 400));
+      all.push(...got);
       if (up.name) await this.ai.files.delete({ name: up.name }).catch(() => {});
     }
     if (!all.length) throw new Error("Gemini kelime zaman damgası döndürmedi.");
