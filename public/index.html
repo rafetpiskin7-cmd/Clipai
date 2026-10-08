@@ -66,7 +66,9 @@ select,input[type=range]{accent-color:var(--ac)}select{background:var(--p2);colo
 .pl{display:grid;gap:8px;margin-top:10px}.pl div{display:flex;gap:12px;align-items:center;padding:8px;background:var(--p2);border:1px solid var(--bd);border-radius:10px}.pl .th{width:56px;height:36px;border-radius:6px;flex:none}.pl small{color:var(--mu);display:block}
 .dash{display:grid;grid-template-columns:1fr 220px;gap:24px;align-items:start}
 @media(max-width:820px){.hero,.dash{grid-template-columns:1fr}.fl{display:none}aside{display:none}.edit{grid-template-columns:1fr}.sub{grid-auto-flow:column}.top nav{display:none}.top .logo{margin-right:auto}}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2d2478;border:1px solid #a78bfa;border-radius:10px;padding:10px 16px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:9}#err{font-size:13px!important;font-weight:600}
 </style></head><body>
+<div id="toast"></div>
 <div id="land">
 <div class="top"><div class="logo"><i>▶</i><div>ClipMind<small>YouTube to Shorts · AI Panel</small></div></div><nav><a>Home</a><a>Features</a><a>Pricing</a><a>Blog</a></nav><button>Sign In</button><button class="pr">Get Started</button></div>
 <div class="hero"><div>
@@ -113,7 +115,8 @@ select,input[type=range]{accent-color:var(--ac)}select{background:var(--p2);colo
 
 <script>
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const LIVE=['localhost','127.0.0.1'].includes(location.hostname);
+let LIVE=false;const ready=fetch('/api/health').then(r=>r.json()).then(j=>{LIVE=j.ok===true}).catch(()=>{});
+const toast=m=>{const t=$('#toast');t.textContent=m;t.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.opacity=0,2800)};
 function go(id){const land=id==='land';$('#land').style.display=land?'':'none';$('#shell').classList.toggle('on',!land);
  if(!land)$$('.scr').forEach(e=>e.classList.toggle('on',e.id===id));$$('aside a[data-n]').forEach(a=>a.classList.toggle('on',a.dataset.n===id));scrollTo(0,0)}
 $$('[data-go]').forEach(a=>a.onclick=()=>go(a.dataset.go));
@@ -145,7 +148,7 @@ $('#sv').onclick=$('#ex').onclick=async e=>{const m=$('#msg');
  const c=await r.json();if(!r.ok)throw new Error(c.error);clips[cur-1]=c;ver=Date.now();grid();m.textContent='Done.';if(e.currentTarget.id==='ex')go('clips')}catch(x){m.textContent='Error: '+x.message}};
 const DEMO=["Fetching video metadata","Downloading & processing video","Extracting audio","Generating transcript","AI analysis & clip selection","Rendering shorts"];
 function steps(list,pct){$('#steps').innerHTML=list.map(s=>`<div class="st ${s.state}"><i>${s.state=='done'?'✓':''}</i>${s.label}<em>${s.state=='done'?'Completed':s.state=='act'?'In progress':'Waiting'}</em></div>`).join('');$('#pb').style.width=pct+'%';$('#pp').textContent=pct+'%'}
-$('#go').onclick=async()=>{$('#err').textContent='';if(!$('#rights').checked){$('#err').textContent='Please confirm you have the right to process this video.';return}
+$('#go').onclick=async()=>{$('#err').textContent='';await ready;if(!$('#rights').checked){$('#err').textContent='Önce "I have the right to process this video" kutusunu işaretle.';toast('Önce izin kutusunu işaretle ☑');$('#rights').focus();return}
  go('proc');
  if(!LIVE){let n=0;steps(DEMO.map((l,i)=>({label:l,state:i?'wait':'act'})),5);const t=setInterval(()=>{n++;if(n>=DEMO.length){clearInterval(t);steps(DEMO.map(l=>({label:l,state:'done'})),100);setTimeout(()=>{grid();go('clips')},500);return}
   steps(DEMO.map((l,i)=>({label:l,state:i<n?'done':i==n?'act':'wait'})),Math.round(n/DEMO.length*100))},800);return}
@@ -155,5 +158,6 @@ $('#go').onclick=async()=>{$('#err').textContent='';if(!$('#rights').checked){$(
   steps(L,Math.round(L.filter(s=>s.state=='done').length/L.length*100));if(j.meta){$('#pt').textContent=$('#ct').textContent=j.meta.title}
   if(j.status==='done'){clearInterval(t);clips=j.clips;grid();go('clips')}
   if(j.status==='error'){clearInterval(t);go('land');$('#err').textContent='Error: '+j.error}},1500)};
+$$('.top nav a,.top>button,aside a:not([data-go]),.tabs span:not(.on),.sub a,.dash .row a').forEach(e=>e.onclick=()=>toast('Henüz aktif değil: kayıt/giriş ve bu bölüm sonraki sürümde.'));
 grid();$('#land').style.display='';$('#shell').classList.remove('on');
 </script></body></html>
