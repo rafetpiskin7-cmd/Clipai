@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ClipMind</title>
+<style>
+:root{color-scheme:dark;--bg:#05061a;--p1:#0a0c26;--p2:#10133a;--bd:#1f2352;--tx:#f1f2ff;--mu:#8b8fb8;--ac:#7c4dff;--bl:#3b82f6;--ok:#34d399;--yl:#ffe23a;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;margin:0}
+body{background:radial-gradient(1000px 600px at 70% -10%,#2a1c7a55,transparent),var(--bg);color:var(--tx);font:14px/1.5 Inter,system-ui,sans-serif;min-height:100vh}
+button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--p2);border-radius:8px;padding:8px 14px}
+button.pr,.pr{background:linear-gradient(90deg,#6d3dff,#8b5cff);border-color:#8b5cff;font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #a78bfa;outline-offset:2px}
+.grad{background:linear-gradient(90deg,#a46bff,#4c8dff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700}.logo i{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#7c4dff,#3b82f6);display:grid;place-items:center;font-style:normal;font-size:12px}
+.logo small{display:block;font-size:9px;color:var(--mu);font-weight:400;line-height:1}
+.box{background:var(--p1);border:1px solid var(--bd);border-radius:14px}
+#land{max-width:1120px;margin:0 auto;padding:16px 24px 40px}
+.top{display:flex;align-items:center;gap:28px;padding:8px 0 40px}.top nav{display:flex;gap:28px;margin:0 auto;color:var(--mu)}.top nav a{cursor:pointer}
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:32px;align-items:center}
+.pill{display:inline-block;border:1px solid var(--bd);background:var(--p2);border-radius:20px;padding:4px 12px;font-size:11px}
+h1{font-size:clamp(34px,5.5vw,54px);line-height:1.08;margin:16px 0}
+.lead{color:#c9cbe8;max-width:480px;margin-bottom:24px}
+.urlbox{display:flex;gap:8px;padding:6px;border:1px solid #5b3fd0;border-radius:12px;background:var(--p1);box-shadow:0 0 30px #6d3dff33}
+.urlbox span{display:grid;place-items:center;width:28px;color:#ff3b3b}.urlbox input{flex:1;min-width:0;background:none;border:0;color:var(--tx);font:inherit}
+.ex{font-size:12px;color:var(--mu);margin-top:10px}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:28px}
+.feat div{display:flex;gap:8px;font-size:12px}.feat b{display:block;font-size:12px}.feat small{color:var(--mu);font-size:10px}
+.feat i{width:30px;height:30px;border-radius:8px;background:var(--p2);border:1px solid var(--bd);display:grid;place-items:center;font-style:normal;flex:none}
+.stage{position:relative;min-height:420px}
+.phone{position:relative;width:min(230px,60%);aspect-ratio:9/18;margin:0 auto;border-radius:28px;border:3px solid #4b36a8;background:linear-gradient(170deg,#1b1450,#07071e 75%);box-shadow:0 0 50px #6d3dff66;overflow:hidden}
+.ppl,.th{background:radial-gradient(circle at 50% 36%,var(--sk,#d9a77f) 0 13%,transparent 14%),radial-gradient(ellipse at 50% 102%,var(--sh,#12122a) 0 40%,transparent 41%),linear-gradient(160deg,var(--c1,#3b2c8f),var(--c2,#07071e))}
+.phone .ppl{position:absolute;inset:0}.badge{position:absolute;top:12px;left:12px;font-size:9px;background:#0009;border:1px solid var(--bd);border-radius:8px;padding:2px 8px;z-index:2}
+.cap{position:absolute;left:0;right:0;bottom:16%;text-align:center;font-weight:800;font-size:17px;line-height:1.15;padding:0 14px;text-shadow:0 2px 6px #000;z-index:2}.cap b{color:var(--yl)}
+.time{position:absolute;left:12px;bottom:10px;font-size:10px;background:#0009;border-radius:6px;padding:1px 6px;z-index:2}
+.fl{position:absolute;padding:14px;width:170px;z-index:3}
+.ring{width:80px;height:80px;border-radius:50%;margin:8px auto 0;background:conic-gradient(var(--ac) 0 94%,#1f2352 0);display:grid;place-items:center}.ring b{width:64px;height:64px;border-radius:50%;background:var(--p1);display:grid;place-items:center;font-size:20px}
+.ck{display:grid;gap:8px;margin-top:8px;font-size:12px}.ck span::before{content:"✓";display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--ac);font-size:10px;margin-right:8px}
+.soc{display:flex;gap:8px;margin-top:6px}.soc i{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-style:normal;font-size:13px}
+.shell{display:none;max-width:1120px;margin:16px auto;border:1px solid var(--bd);border-radius:14px;overflow:hidden;background:var(--p1);min-height:560px}.shell.on{display:flex}
+aside{width:176px;flex:none;padding:16px 10px;border-right:1px solid var(--bd);display:grid;align-content:start;gap:4px}aside .logo{margin:0 6px 16px}
+aside a{padding:8px 10px;border-radius:8px;color:var(--mu);cursor:pointer;font-size:13px}aside a.on{background:linear-gradient(90deg,#4c2fc0,#2b2a80);color:#fff}
+.main{flex:1;min-width:0;padding:20px 24px}.scr{display:none}.scr.on{display:block}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.sp{margin-left:auto}
+.tag{padding:2px 10px;border-radius:6px;font-size:11px;background:#064e3b;color:var(--ok)}.tag.pg{background:#2d2478;color:#b9a6ff}
+.vhead{display:flex;gap:14px;align-items:center;padding:12px;margin:16px 0}.vhead .th{width:110px;height:64px;border-radius:8px}
+.steps{display:grid;gap:12px;margin:18px 4px}.st{display:flex;gap:10px;align-items:center;color:var(--mu);font-size:13px}.st i{width:16px;height:16px;border-radius:50%;border:1px solid var(--bd);display:grid;place-items:center;font-size:9px;font-style:normal;flex:none}
+.st.done{color:var(--tx)}.st.done i{background:#10b981;border-color:#10b981}.st.act{color:#fff}.st.act i{border-color:var(--ac);background:#2d2478}.st em{margin-left:auto;font-style:normal;font-size:11px;color:var(--ok)}.st.act em{color:#a78bfa}.st:not(.done):not(.act) em{color:var(--mu)}
+.bar{height:7px;background:var(--p2);border-radius:8px;overflow:hidden}.bar div{height:100%;background:linear-gradient(90deg,#6d3dff,#4c8dff);transition:width .4s}
+.tabs{display:flex;gap:20px;border-bottom:1px solid var(--bd);margin:8px 0 16px}.tabs span{padding:8px 0;color:var(--mu);cursor:pointer}.tabs .on{color:#fff;border-bottom:2px solid var(--ac)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.card{background:var(--p2);border:1px solid var(--bd);border-radius:12px;padding:6px}
+.card .th,.card video{display:block;width:100%;aspect-ratio:9/13;border-radius:8px;position:relative;object-fit:cover}
+.card .m{display:flex;justify-content:space-between;font-size:10px;color:var(--mu);margin:6px 2px 0}.card h4{font-size:11px;margin:2px 2px 8px}
+.card .th span{position:absolute;left:6px;bottom:6px;font-size:9px;background:#000a;border-radius:5px;padding:0 5px}.card .th em{position:absolute;right:6px;bottom:6px;font-size:9px;background:var(--ac);border-radius:5px;padding:0 5px;font-style:normal}
+.card button{width:100%;margin-top:6px;padding:6px;font-size:12px}
+.edit{display:grid;grid-template-columns:90px minmax(180px,230px) 1fr;gap:20px}
+.sub{display:grid;align-content:start;gap:4px}.sub a{padding:7px 10px;border-radius:8px;color:var(--mu);font-size:12px}.sub a.on{background:#2d2478;color:#fff}
+.edit .phone{width:100%;aspect-ratio:9/16;border-radius:14px;border-width:1px}.edit video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.pn{display:grid;gap:14px;align-content:start}.pn label{font-size:12px;color:var(--mu);display:block;margin-bottom:6px}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.tiles button{padding:12px 4px;font-size:11px;font-weight:800;text-align:center}.tiles .on{border-color:#a78bfa;background:#2d2478}
+.sw{display:flex;gap:8px}.sw button{width:22px;height:22px;border-radius:50%;padding:0;border:2px solid transparent}.sw .on{border-color:#fff}
+.seg{display:flex;gap:8px}.seg button{width:38px;padding:6px}.seg .on{border-color:#a78bfa;background:#2d2478}
+select,input[type=range]{accent-color:var(--ac)}select{background:var(--p2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px;width:100%}
+.hello{font-size:22px;font-weight:700}.mk{background:linear-gradient(120deg,#5b3df0,#2a62d8);border-radius:14px;padding:18px;margin:16px 0}
+.mk input{width:100%;margin-top:10px;padding:10px;border-radius:10px;border:0;background:#0b0d2acc;color:var(--tx);font:inherit}
+.pl{display:grid;gap:8px;margin-top:10px}.pl div{display:flex;gap:12px;align-items:center;padding:8px;background:var(--p2);border:1px solid var(--bd);border-radius:10px}.pl .th{width:56px;height:36px;border-radius:6px;flex:none}.pl small{color:var(--mu);display:block}
+.dash{display:grid;grid-template-columns:1fr 220px;gap:24px;align-items:start}
+@media(max-width:820px){.hero,.dash{grid-template-columns:1fr}.fl{display:none}aside{display:none}.edit{grid-template-columns:1fr}.sub{grid-auto-flow:column}.top nav{display:none}.top .logo{margin-right:auto}}
+</style></head><body>
+<div id="land">
+<div class="top"><div class="logo"><i>▶</i><div>ClipMind<small>YouTube to Shorts · AI Panel</small></div></div><nav><a>Home</a><a>Features</a><a>Pricing</a><a>Blog</a></nav><button>Sign In</button><button class="pr">Get Started</button></div>
+<div class="hero"><div>
+<span class="pill">◉ Turn YouTube videos into viral shorts</span>
+<h1>AI-Powered Shorts<br>from <span class="grad">YouTube Videos</span></h1>
+<p class="lead">Paste a YouTube link, let AI find the best moments, and get ready-to-post vertical clips with captions, titles and more.</p>
+<div class="urlbox"><span>▶</span><input id="url" placeholder="Paste YouTube URL here..." aria-label="YouTube URL"><button class="pr" id="go">Create Shorts →</button></div>
+<p class="ex">Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ</p>
+<label class="ex" style="display:block"><input type="checkbox" id="rights"> I have the right to process this video</label><p class="ex" id="err" style="color:#ff8a8a"></p>
+<div class="feat"><div><i>◎</i><span><b>AI Analysis</b><small>Finds viral moments</small></span></div><div><i>▭</i><span><b>Auto Captions</b><small>Adds subtitles</small></span></div><div><i>▯</i><span><b>9:16 Format</b><small>Perfect for Shorts</small></span></div><div><i>▦</i><span><b>Multiple Clips</b><small>5-10 clips per video</small></span></div></div>
+</div>
+<div class="stage"><div class="phone"><div class="ppl"></div><span class="badge">✦ AI Generated</span><div class="cap">Bu aslında<br><b>çok daha basit.</b></div><span class="time">0:32</span></div>
+<div class="fl box" style="right:0;top:0"><small style="color:var(--mu)">Viral Score</small><div class="ring"><b>94<small style="font-size:9px;color:var(--mu)">/100</small></b></div></div>
+<div class="fl box" style="right:-10px;top:150px;width:190px"><b style="font-size:12px">Auto Generated</b><div class="ck"><span>Captions</span><span>Title</span><span>Description</span><span>Hashtags</span></div></div>
+<div class="fl" style="right:0;bottom:0;width:190px;text-align:center;font-style:italic;color:#c9cbe8;font-size:12px">From long videos<br>to viral shorts<div class="soc" style="justify-content:center"><i style="background:#e11">▶</i><i style="background:#111;border:1px solid var(--bd)">♪</i><i style="background:#c13584">◎</i><i style="background:#f33">⚡</i></div></div></div></div>
+</div>
+
+<div class="shell" id="shell"><aside><div class="logo"><i>▶</i><div>ClipMind<small>YouTube to Shorts</small></div></div>
+<a data-go="dash" data-n="dash">⌂ Home</a><a data-go="land" data-n="land">✦ Create Shorts</a><a data-go="clips" data-n="clips">▤ Projects</a><a data-go="clips">▦ Generated Clips</a><a data-go="clips">⇪ Exports</a><a>◈ Brand Kit</a><a>⚙ Settings</a></aside>
+<div class="main">
+<section class="scr" id="proc"><div class="row"><div><h2>Processing Your Video</h2><p style="color:var(--mu)">We're analyzing the YouTube video and finding the best moments for you.</p></div><button class="sp" data-go="land">Cancel</button></div>
+<div class="box vhead"><div class="th" style="--c1:#2a6a9a;--c2:#d9a96a"></div><div><b id="pt">The Future of Artificial Intelligence</b><div style="color:var(--mu);font-size:12px">▶ YouTube · 1:24:36</div></div></div>
+<div class="steps" id="steps"></div><div class="row" style="font-size:11px;color:var(--mu)"><span class="sp" id="pp">0%</span></div><div class="bar"><div id="pb" style="width:0"></div></div></section>
+
+<section class="scr" id="clips"><div class="row"><div class="th" style="width:96px;height:56px;border-radius:8px;--c1:#2a6a9a;--c2:#d9a96a"></div><div><b id="ct">The Future of Artificial Intelligence</b><div style="color:var(--mu);font-size:12px">YouTube · 1:24:36 · <span id="cn">7</span> clips</div></div><span class="tag sp">Completed</span></div>
+<div class="tabs"><span class="on">Generated Clips (<b id="cn2">7</b>)</span><span>Transcript</span><span>AI Analysis</span></div><div class="cards" id="grid"></div></section>
+
+<section class="scr" id="edit"><div class="row" style="margin-bottom:12px"><button data-go="clips">← Back to Clips</button><b>Edit Clip</b><button class="sp" id="sv">Save</button><button class="pr" id="ex">Export</button></div>
+<div class="edit"><div class="sub"><a>✂ Trim</a><a class="on">▭ Captions</a><a>◐ Style</a><a>☰ Hook</a><a>♪ Music</a><a>▶ Preview</a></div>
+<div class="phone" id="ph"><video id="ev" controls playsinline hidden></video><div class="ppl" id="eppl"></div><div class="cap" id="cp">Bu aslında<br><b>çok daha basit.</b></div></div>
+<div class="pn"><div><label>Caption Style</label><div class="tiles" id="tl"></div></div>
+<div class="row"><div style="flex:1"><label>Font</label><select id="font"><option>Inter</option><option>Impact</option><option>Georgia</option></select></div><div style="flex:1"><label>Size <span id="szv">42px</span></label><input type="range" id="sz" min="28" max="64" value="42" style="width:100%"></div></div>
+<div><label>Text Color</label><div class="sw" id="sw"></div></div>
+<div><label>Position</label><div class="seg" id="ps"><button data-p="top">⬒</button><button data-p="center">▣</button><button class="on" data-p="bottom">⬓</button></div></div>
+<div><label>Trim: start +<span id="a1">0</span>s · end −<span id="a2">0</span>s</label><input type="range" id="t1" min="0" max="10" step=".5" value="0" style="width:100%"><input type="range" id="t2" min="0" max="10" step=".5" value="0" style="width:100%"></div>
+<label style="display:flex;gap:8px;align-items:center;color:var(--tx)"><input type="checkbox" id="show" checked> Show Captions</label><p id="msg" style="font-size:12px;color:var(--mu)"></p></div></div></section>
+
+<section class="scr on" id="dash"><div class="dash"><div><div class="hello">Good morning, Rafet 👋</div><p style="color:var(--mu)">Turn your favorite YouTube videos into viral shorts.</p>
+<div class="mk"><b>Create New Shorts</b><div style="font-size:12px;opacity:.85">Paste a YouTube link and let AI do the rest.</div><input placeholder="Paste YouTube URL..." data-go="land" readonly></div>
+<div class="row"><b>Recent Projects</b><a class="sp" style="color:#a78bfa;font-size:12px">View all ›</a></div>
+<div class="pl"><div><span class="th" style="--c1:#2a6a9a;--c2:#d9a96a"></span><span>The Future of Artificial Intelligence<small>7 clips · Completed · 2 hours ago</small></span></div><div><span class="th" style="--c1:#3a3a6a;--c2:#111"></span><span>Business Mindset - Full Interview<small>5 clips · Completed · 1 day ago</small></span></div><div><span class="th" style="--c1:#1a2a5a;--c2:#6a3a2a"></span><span>Space Exploration Documentary<small>6 clips · Completed · 3 days ago</small></span></div></div></div>
+<div class="phone" style="width:100%"><div class="ppl" style="--c1:#2a5a4a;--c2:#d9a96a"></div><div class="cap" style="font-size:13px;bottom:22%">Hayallerine<br><b>asla vazgeçme.</b></div><button class="pr" style="position:absolute;left:10px;right:10px;bottom:10px;font-size:11px">⬇ Download</button></div></div></section>
+</div></div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const LIVE=['localhost','127.0.0.1'].includes(location.hostname);
+function go(id){const land=id==='land';$('#land').style.display=land?'':'none';$('#shell').classList.toggle('on',!land);
+ if(!land)$$('.scr').forEach(e=>e.classList.toggle('on',e.id===id));$$('aside a[data-n]').forEach(a=>a.classList.toggle('on',a.dataset.n===id));scrollTo(0,0)}
+$$('[data-go]').forEach(a=>a.onclick=()=>go(a.dataset.go));
+const PAL=[["#3b2c8f","#07071e"],["#1d3a6e","#2a1060"],["#0f4a5e","#1a0a3a"],["#5a2a6e","#0a0a2a"],["#2a5a4a","#d9a96a"],["#6a3a2a","#0a1a3a"],["#2a2a7a","#7a3a2a"]];
+const th=i=>`style="--c1:${PAL[i%7][0]};--c2:${PAL[i%7][1]};--sk:${['#d9a77f','#c8a8e8','#9ad','#e8c8a8'][i%4]}"`;
+let clips=[["AI Kullanırken Yapılan En Büyük Hata",42,94],["Gelecekte Bizi Neler Bekliyor?",38,91],["Yapay Zeka Gerçekten Tehlikeli Mi?",45,89],["İnsanlık İçin Yeni Bir Çağ Başlıyor",36,87],["Beyin ve Yapay Zeka Arasındaki Bağ",33,85],["İş Dünyası Nasıl Değişecek?",40,82],["Yapay Zeka ile Para Kazanmak",27,78]].map((c,i)=>({id:i+1,title:c[0],duration:c[1],viralScore:c[2],file:null}));
+let job=null,cur=1,ver=Date.now(),st={name:"bold",color:"#ffe23a",position:"bottom",size:84,enabled:true,font:"Inter"};
+const pad=n=>String(n).padStart(2,'0');
+function grid(){$('#cn').textContent=$('#cn2').textContent=clips.length;
+ $('#grid').innerHTML=clips.map((c,i)=>`<div class="card">${c.file?`<video src="${c.file}?v=${ver}" controls playsinline preload="metadata"></video>`:`<div class="th" ${th(i)}><span>0:${pad(c.duration)}</span><em>${c.viralScore}/100</em></div>`}<div class="m"><span>0:${pad(c.duration)}</span><span>${c.viralScore}/100</span></div><h4>${c.title}</h4><button data-e="${i+1}">✎ Edit</button>${c.file?`<a href="${c.file}" download="short-${i+1}.mp4"><button class="pr">Download</button></a>`:`<button class="pr" data-d>Download</button>`}</div>`).join('');
+ $$('[data-e]').forEach(b=>b.onclick=()=>openEdit(+b.dataset.e));$$('[data-d]').forEach(b=>b.onclick=()=>alert('Önizleme örnek veriyle çalışır. Gerçek MP4 için arka ucu çalıştır (localhost).'))}
+const TILES=[["bold","Bold Creator"],["minimal","Minimal"],["viral","VIRAL"],["clean","Clean"],["cinematic","Cinematic"]],COL=["#ffffff","#ffe23a","#34d399","#3b82f6","#a78bfa","#f472b6"];
+$('#tl').innerHTML=TILES.map((t,i)=>`<button data-s="${t[0]}" class="${i?'':'on'}">${t[1]}</button>`).join('');
+$('#sw').innerHTML=COL.map(c=>`<button data-c="${c}" class="${c==st.color?'on':''}" style="background:${c}" aria-label="${c}"></button>`).join('');
+function sel(box,attr,fn){$(box).onclick=e=>{const v=e.target.closest('button')?.dataset[attr];if(!v)return;$$(box+' button').forEach(b=>b.classList.toggle('on',b.dataset[attr]===v));fn(v)}}
+sel('#tl','s',v=>{st.name=v;const c=$('#cp').style;c.textTransform=v==='viral'?'uppercase':'none';c.fontStyle=v==='cinematic'?'italic':'normal'});
+sel('#sw','c',v=>{st.color=v;$('#cp b').style.color=v});
+sel('#ps','p',v=>{st.position=v;const c=$('#cp').style;c.top=v==='top'?'12%':v==='center'?'42%':'';c.bottom=v==='bottom'?'16%':''});
+$('#sz').oninput=e=>{$('#szv').textContent=e.target.value+'px';st.size=Math.round(e.target.value*2);$('#cp').style.fontSize=e.target.value*.4+'px'};
+$('#font').onchange=e=>{st.font=e.target.value;$('#cp').style.fontFamily=e.target.value};
+$('#show').onchange=e=>{st.enabled=e.target.checked;$('#cp').style.display=e.target.checked&&!LIVE?'':'none'};
+$('#t1').oninput=e=>$('#a1').textContent=e.target.value;$('#t2').oninput=e=>$('#a2').textContent=e.target.value;
+function openEdit(n){cur=n;const c=clips[n-1],v=$('#ev');$('#eppl').setAttribute('style',th(n-1).slice(7,-1));
+ if(LIVE&&c.file){v.hidden=false;v.src=c.file+'?v='+ver;$('#cp').style.display='none';$('#eppl').style.display='none'}
+ $('#t1').value=$('#t2').value=0;$('#a1').textContent=$('#a2').textContent=0;$('#msg').textContent='';go('edit')}
+$('#sv').onclick=$('#ex').onclick=async e=>{const m=$('#msg');
+ if(!LIVE){m.textContent='Önizleme: kaydedildi (örnek).';return}
+ m.textContent='Re-rendering...';try{const r=await fetch(`/api/projects/${job.id}/clips/${cur}/rerender`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trimStart:+$('#t1').value,trimEnd:+$('#t2').value,style:st})});
+ const c=await r.json();if(!r.ok)throw new Error(c.error);clips[cur-1]=c;ver=Date.now();grid();m.textContent='Done.';if(e.currentTarget.id==='ex')go('clips')}catch(x){m.textContent='Error: '+x.message}};
+const DEMO=["Fetching video metadata","Downloading & processing video","Extracting audio","Generating transcript","AI analysis & clip selection","Rendering shorts"];
+function steps(list,pct){$('#steps').innerHTML=list.map(s=>`<div class="st ${s.state}"><i>${s.state=='done'?'✓':''}</i>${s.label}<em>${s.state=='done'?'Completed':s.state=='act'?'In progress':'Waiting'}</em></div>`).join('');$('#pb').style.width=pct+'%';$('#pp').textContent=pct+'%'}
+$('#go').onclick=async()=>{$('#err').textContent='';if(!$('#rights').checked){$('#err').textContent='Please confirm you have the right to process this video.';return}
+ go('proc');
+ if(!LIVE){let n=0;steps(DEMO.map((l,i)=>({label:l,state:i?'wait':'act'})),5);const t=setInterval(()=>{n++;if(n>=DEMO.length){clearInterval(t);steps(DEMO.map(l=>({label:l,state:'done'})),100);setTimeout(()=>{grid();go('clips')},500);return}
+  steps(DEMO.map((l,i)=>({label:l,state:i<n?'done':i==n?'act':'wait'})),Math.round(n/DEMO.length*100))},800);return}
+ const r=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('#url').value.trim(),rightsConfirmed:true,style:st})});const d=await r.json();
+ if(!r.ok){go('land');$('#err').textContent=d.error;return}
+ const t=setInterval(async()=>{const j=await(await fetch('/api/projects/'+d.id)).json();job=j;const L=j.steps.map(s=>({label:s.label,state:s.state=='active'?'act':s.state=='done'?'done':'wait'}));
+  steps(L,Math.round(L.filter(s=>s.state=='done').length/L.length*100));if(j.meta){$('#pt').textContent=$('#ct').textContent=j.meta.title}
+  if(j.status==='done'){clearInterval(t);clips=j.clips;grid();go('clips')}
+  if(j.status==='error'){clearInterval(t);go('land');$('#err').textContent='Error: '+j.error}},1500)};
+grid();$('#land').style.display='';$('#shell').classList.remove('on');
+</script></body></html>
