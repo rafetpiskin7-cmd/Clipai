@@ -97,9 +97,10 @@ export class GeminiTranscription implements TranscriptionProvider {
 }
 
 export function analysisPrompt(t: Transcript, meta: VideoMeta): string {
+  const minS = Number(process.env.CLIP_MIN_SEC) || 40, maxS = Number(process.env.CLIP_MAX_SEC) || 50, maxClips = Number(process.env.MAX_CLIPS) || 5;
   const lines = t.segments.map(s => `[${s.start.toFixed(1)}-${s.end.toFixed(1)}] ${s.text}`).join("\n");
   return `Aşağıda "${meta.title}" videosunun zaman damgalı transkripti var (saniye cinsinden).
-Videoyu sabit aralıklarla bölme. Kendi başına anlamlı 5-10 kısa klip seç (tercihen 20-60 sn; cümle ortasında kesme).
+Videoyu sabit aralıklarla bölme. Kendi başına anlamlı, en fazla ${maxClips} klip seç. HER KLİP ${minS} ile ${maxS} saniye arasında olmalı (end - start en az ${minS}, en fazla ${maxS}); daha kısa veya daha uzun klip verme. Cümle ortasında kesme.
 Ölçütler: güçlü giriş, şaşırtıcı bilgi, duygusal an, tartışmalı ifade, faydalı bilgi, komik an, hikaye doruğu, merak, güçlü son.
 Klip kancadan hemen önce başlasın, sonuçtan sonra bitsin. Başlık/hook/açıklama transkriptin dilinde olsun.
 SADECE JSON dizisi döndür:
