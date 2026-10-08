@@ -18,7 +18,7 @@ export interface Job {
   id: string; url: string; status: "running" | "done" | "error"; error?: string;
   steps: { label: string; state: "waiting" | "active" | "done" }[];
   meta?: VideoMeta; clips: ClipOut[]; style: CaptionStyle;
-  dir: string; source?: string; transcript?: Transcript; plans: ClipPlan[];
+  dir: string; source?: string; transcript?: Transcript; plans: ClipPlan[]; src?: VideoSourceProvider;
 }
 export interface Deps {
   source: VideoSourceProvider; stt: TranscriptionProvider; ai: AIAnalysisProvider; storage: StorageProvider;
@@ -36,8 +36,9 @@ export async function runPipeline(job: Job, d: Deps) {
     if (job.steps[i]) job.steps[i].state = "active";
   };
   try {
-    step(0); job.meta = await d.source.getMetadata(job.url);
-    step(1); job.source = await d.source.download(job.url, job.dir);
+    const src = job.src ?? d.source;
+    step(0); job.meta = await src.getMetadata(job.url);
+    step(1); job.source = await src.download(job.url, job.dir);
     step(2); const audio = path.join(job.dir, "audio.mp3");
     await run("ffmpeg", ["-y", "-i", job.source, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "32k", audio]);
     step(3); job.transcript = await d.stt.transcribe(audio);

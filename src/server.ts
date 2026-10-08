@@ -2,6 +2,9 @@ import "dotenv/config";
 import express from "express";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createWriteStream } from "node:fs";
+import { pipeline as pipe } from "node:stream/promises";
+import { LocalFileSource } from "./providers/local.js";
 import { randomUUID } from "node:crypto";
 import { YtDlpSource } from "./providers/youtube.js";
 import { GeminiAnalysis, GeminiTranscription } from "./providers/gemini.js";
@@ -44,6 +47,29 @@ app.post("/api/projects", async (req, res) => {
   jobs.set(id, job);
   runPipeline(job, deps);
   res.status(202).json({ id });
+});
+
+const MAX_UPLOAD = 300 * 1024 * 1024;
+const EXTS = new Set([".mp4", ".mov", ".mkv", ".webm", ".m4v"]);
+app.post("/api/projects/upload", async (req, res) => {
+  try {
+    if (req.header("x-rights") !== "true") return res.status(400).json({ error: "Videoyu işleme hakkına sahip olduğunu onaylamalısın." });
+    if (!process.env.GEMINI_API_KEY) return res.status(500).json({ error: "GEMINI_API_KEY .env içinde tanımlı olmalı." });
+    if (Number(req.header("content-length") || 0) > MAX_UPLOAD) return res.status(413).json({ error: "Dosya çok büyük (en fazla 300 MB)." });
+    const name = decodeURIComponent(req.header("x-filename") || "video.mp4");
+    const ext = path.extname(name).toLowerCase();
+    if (!EXTS.has(ext)) return res.status(400).json({ error: "Desteklenen formatlar: mp4, mov, mkv, webm, m4v." });
+    const style = JSON.parse(decodeURIComponent(req.header("x-style") || '{"name":"bold"}')) as CaptionStyle;
+    const id = randomUUID();
+    const dir = await storage.dir(id);
+    const file = path.join(dir, "upload" + ext);
+    await pipe(req, createWriteStream(file));
+    const job = newJob(id, name, style, dir);
+    job.src = new LocalFileSource(file, path.basename(name, ext));
+    jobs.set(id, job);
+    runPipeline(job, deps);
+    res.status(202).json({ id });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 app.get("/api/projects/:id", (req, res) => {
