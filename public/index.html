@@ -90,7 +90,7 @@ select,input[type=range]{accent-color:var(--ac)}select{background:var(--p2);colo
 <a data-go="dash" data-n="dash">⌂ Home</a><a data-go="land" data-n="land">✦ Create Shorts</a><a data-go="clips" data-n="clips">▤ Projects</a><a data-go="clips">▦ Generated Clips</a><a data-go="clips">⇪ Exports</a><a>◈ Brand Kit</a><a>⚙ Settings</a></aside>
 <div class="main">
 <section class="scr" id="proc"><div class="row"><div><h2>Processing Your Video</h2><p style="color:var(--mu)">We're analyzing the YouTube video and finding the best moments for you.</p></div><button class="sp" data-go="land">Cancel</button></div>
-<div class="box vhead"><div class="th" style="--c1:#2a6a9a;--c2:#d9a96a"></div><div><b id="pt">The Future of Artificial Intelligence</b><div style="color:var(--mu);font-size:12px">▶ YouTube · 1:24:36</div></div></div>
+<div class="box vhead"><div class="th" style="--c1:#2a6a9a;--c2:#d9a96a"></div><div><b id="pt">The Future of Artificial Intelligence</b><div style="color:var(--mu);font-size:12px" id="pd">▶ YouTube · 1:24:36</div></div></div>
 <div class="steps" id="steps"></div><div class="row" style="font-size:11px;color:var(--mu)"><span class="sp" id="pp">0%</span></div><div class="bar"><div id="pb" style="width:0"></div></div></section>
 
 <section class="scr" id="clips"><div class="row"><div class="th" style="width:96px;height:56px;border-radius:8px;--c1:#2a6a9a;--c2:#d9a96a"></div><div><b id="ct">The Future of Artificial Intelligence</b><div style="color:var(--mu);font-size:12px">YouTube · 1:24:36 · <span id="cn">7</span> clips</div></div><span class="tag sp">Completed</span></div>
@@ -154,8 +154,8 @@ $('#go').onclick=async()=>{$('#err').textContent='';await ready;if(!$('#rights')
   steps(DEMO.map((l,i)=>({label:l,state:i<n?'done':i==n?'act':'wait'})),Math.round(n/DEMO.length*100))},800);return}
  const F=$('#file').files[0];const r=F?await fetch('/api/projects/upload',{method:'POST',headers:{'x-rights':'true','x-filename':encodeURIComponent(F.name),'x-style':encodeURIComponent(JSON.stringify(st)),'Content-Type':'application/octet-stream'},body:F}):await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('#url').value.trim(),rightsConfirmed:true,style:st})});const d=await r.json();
  if(!r.ok){go('land');$('#err').textContent=d.error;return}
- const t=setInterval(async()=>{const j=await(await fetch('/api/projects/'+d.id)).json();job=j;const L=j.steps.map(s=>({label:s.label,state:s.state=='active'?'act':s.state=='done'?'done':'wait'}));
-  steps(L,Math.round(L.filter(s=>s.state=='done').length/L.length*100));if(j.meta){$('#pt').textContent=$('#ct').textContent=j.meta.title}
+ let fails=0;$('#pd').textContent='▶ Hazırlanıyor...';const t=setInterval(async()=>{let j;try{const rr=await fetch('/api/projects/'+d.id);j=await rr.json();if(!rr.ok||!j.steps)throw new Error(j.error||'Sunucudan cevap alınamadı')}catch(x){if(++fails<4)return;clearInterval(t);go('land');$('#err').textContent='Bağlantı koptu: '+x.message+'. Sunucu yeniden başlamış olabilir, videoyu tekrar yükle.';return}fails=0;job=j;const L=j.steps.map(s=>({label:s.label,state:s.state=='active'?'act':s.state=='done'?'done':'wait'}));
+  steps(L,Math.round(L.filter(s=>s.state=='done').length/L.length*100));if(j.meta){$('#pt').textContent=$('#ct').textContent=j.meta.title;const s=Math.round(j.meta.duration||0);$('#pd').textContent='▶ '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0')+' dk · işleniyor'}
   if(j.status==='done'){clearInterval(t);clips=j.clips;grid();go('clips')}
   if(j.status==='error'){clearInterval(t);go('land');$('#err').textContent='Error: '+j.error}},1500)};
 $$('.top nav a,.top>button,aside a:not([data-go]),.tabs span:not(.on),.sub a,.dash .row a').forEach(e=>e.onclick=()=>toast('Henüz aktif değil: kayıt/giriş ve bu bölüm sonraki sürümde.'));
