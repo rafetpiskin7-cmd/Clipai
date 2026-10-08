@@ -60,4 +60,6 @@ app.post("/api/projects/:id/clips/:n/rerender", async (req, res) => {
   } catch (e: any) { res.status(400).json({ error: e.message }); }
 });
 
+app.get("/api/health", (_q, res) => res.json({ ok: true }));
+
 app.listen(Number(process.env.PORT) || 3000, () => console.log("ShortifyAI → http://localhost:" + (process.env.PORT || 3000)));
