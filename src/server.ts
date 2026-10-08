@@ -55,7 +55,7 @@ app.use(express.static(path.resolve("public")));
 app.use("/media", express.static(DATA));
 
 const view = (j: Job) => ({
-  id: j.id, status: j.status, error: j.error, steps: j.steps, meta: j.meta,
+  id: j.id, status: j.status, error: j.error, steps: j.steps, meta: j.meta, total: j.plans.length,
   clips: j.clips.map(c => ({ ...c, file: storage.url(j.id, c.file) })),
 });
 

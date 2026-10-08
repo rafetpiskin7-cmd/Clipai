@@ -63,7 +63,7 @@ export async function runPipeline(job: Job, d: Deps) {
     const dur = job.meta.duration, transcript = job.transcript;
     const fitted = raw.filter(c => Number(c.end) > Number(c.start)).map(c => fitClip(c, transcript, dur))
       .filter(c => c.end - c.start >= Math.min(15, dur * 0.5)).sort((a, b) => b.viralScore - a.viralScore);
-    job.plans = dropOverlaps(fitted).slice(0, Number(process.env.MAX_CLIPS) || 5);
+    job.plans = dropOverlaps(fitted).slice(0, Number(process.env.MAX_CLIPS) || 3);
     if (!job.plans.length) throw new Error("Uygun klip bulunamadı.");
     step(5);
     for (let i = 0; i < job.plans.length; i++) {
