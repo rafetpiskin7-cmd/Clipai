@@ -6,6 +6,19 @@ import type { AIAnalysisProvider, ClipPlan, Segment, Transcript, TranscriptionPr
 
 const CHUNK_SEC = 1200; // kelime zaman damgası açıkken ses başına limit 30 dk; 20 dk'lık parçalara böleriz
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+const transient = (e: any) => /503|429|UNAVAILABLE|KULLANILAMAZ|overload|high demand|yüksek talep|RESOURCE_EXHAUSTED|fetch failed/i.test(String(e?.message ?? e));
+/** Geçici hatalarda (503/429/aşırı yük) artan bekleme ile yeniden dener. */
+export async function withRetry<T>(fn: () => Promise<T>, tries = 4): Promise<T> {
+  const base = Number(process.env.RETRY_BASE_MS) || 4000;
+  let last: any;
+  for (let i = 0; i < tries; i++) {
+    try { return await fn(); }
+    catch (e) { last = e; if (!transient(e) || i === tries - 1) break; await sleep(base * 2 ** i); }
+  }
+  throw last;
+}
+
 const sec = (v: unknown) => parseFloat(String(v ?? "0").replace("s", "")) || 0;
 
 /** Kelime listesini cümle/duraklama sınırlarında segmentlere böler. Saf fonksiyon, test edilebilir. */
@@ -71,8 +84,8 @@ export class GeminiTranscription implements TranscriptionProvider {
     const chunks = (await fs.readdir(dir)).filter(f => /^chunk\d+\.mp3$/.test(f)).sort();
     const all: Word[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      const up = await uploadAudio(this.ai, path.join(dir, chunks[i]));
-      const resp = await callTranscribe(up.uri!, up.mimeType!);
+      const up = await withRetry(() => uploadAudio(this.ai, path.join(dir, chunks[i])));
+      const resp = await withRetry(() => callTranscribe(up.uri!, up.mimeType!));
       const got = extractWords(resp, i * CHUNK_SEC);
       if (!got.length) throw new Error("Gemini kelime zaman damgası döndürmedi. Cevap: " + JSON.stringify(resp).slice(0, 400));
       all.push(...got);
@@ -96,16 +109,25 @@ TRANSKRİPT:
 ${lines}`;
 }
 
+const FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3-flash-preview", "gemini-2.5-flash"];
+
 export class GeminiAnalysis implements AIAnalysisProvider {
   private ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  /** Önce GEMINI_ANALYSIS_MODEL (virgülle birden fazla olabilir), sonra yedek modeller. */
   async findClips(t: Transcript, meta: VideoMeta): Promise<ClipPlan[]> {
-    const res = await this.ai.models.generateContent({
-      model: process.env.GEMINI_ANALYSIS_MODEL || "gemini-3-flash-preview",
-      contents: analysisPrompt(t, meta),
-      config: { responseMimeType: "application/json" },
-    });
-    const m = (res.text ?? "").match(/\[[\s\S]*\]/);
-    if (!m) throw new Error("Gemini geçerli JSON döndürmedi.");
-    return JSON.parse(m[0]) as ClipPlan[];
+    const wanted = (process.env.GEMINI_ANALYSIS_MODEL || "").split(",").map(x => x.trim()).filter(Boolean);
+    const models = [...new Set([...wanted, ...FALLBACK_MODELS])];
+    let last: any;
+    for (const model of models) {
+      try {
+        const res = await withRetry(() => this.ai.models.generateContent({
+          model, contents: analysisPrompt(t, meta), config: { responseMimeType: "application/json" },
+        }), 3);
+        const m = (res.text ?? "").match(/\[[\s\S]*\]/);
+        if (!m) throw new Error("Gemini geçerli JSON döndürmedi.");
+        return JSON.parse(m[0]) as ClipPlan[];
+      } catch (e) { last = e; }
+    }
+    throw new Error(`Gemini analiz başarısız (denenen: ${models.join(", ")}): ${String((last as any)?.message ?? last).slice(0, 300)}`);
   }
 }
