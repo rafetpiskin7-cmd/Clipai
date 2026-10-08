@@ -76,7 +76,7 @@ select,input[type=range]{accent-color:var(--ac)}select{background:var(--p2);colo
 <h1>AI-Powered Shorts<br>from <span class="grad">YouTube Videos</span></h1>
 <p class="lead">Paste a YouTube link, let AI find the best moments, and get ready-to-post vertical clips with captions, titles and more.</p>
 <div class="urlbox"><span>▶</span><input id="url" placeholder="Paste YouTube URL here..." aria-label="YouTube URL"><button class="pr" id="go">Create Shorts →</button></div>
-<p class="ex">Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ</p>
+<p class="ex">Example: https://www.youtube.com/watch?v=dQw4w9WgXcQ</p><p class="ex">or <label style="color:#a78bfa;cursor:pointer;text-decoration:underline">upload a video file<input type="file" id="file" accept="video/*" hidden></label> <b id="fn"></b></p>
 <label class="ex" style="display:block"><input type="checkbox" id="rights"> I have the right to process this video</label><p class="ex" id="err" style="color:#ff8a8a"></p>
 <div class="feat"><div><i>◎</i><span><b>AI Analysis</b><small>Finds viral moments</small></span></div><div><i>▭</i><span><b>Auto Captions</b><small>Adds subtitles</small></span></div><div><i>▯</i><span><b>9:16 Format</b><small>Perfect for Shorts</small></span></div><div><i>▦</i><span><b>Multiple Clips</b><small>5-10 clips per video</small></span></div></div>
 </div>
@@ -152,12 +152,13 @@ $('#go').onclick=async()=>{$('#err').textContent='';await ready;if(!$('#rights')
  go('proc');
  if(!LIVE){let n=0;steps(DEMO.map((l,i)=>({label:l,state:i?'wait':'act'})),5);const t=setInterval(()=>{n++;if(n>=DEMO.length){clearInterval(t);steps(DEMO.map(l=>({label:l,state:'done'})),100);setTimeout(()=>{grid();go('clips')},500);return}
   steps(DEMO.map((l,i)=>({label:l,state:i<n?'done':i==n?'act':'wait'})),Math.round(n/DEMO.length*100))},800);return}
- const r=await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('#url').value.trim(),rightsConfirmed:true,style:st})});const d=await r.json();
+ const F=$('#file').files[0];const r=F?await fetch('/api/projects/upload',{method:'POST',headers:{'x-rights':'true','x-filename':encodeURIComponent(F.name),'x-style':encodeURIComponent(JSON.stringify(st)),'Content-Type':'application/octet-stream'},body:F}):await fetch('/api/projects',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:$('#url').value.trim(),rightsConfirmed:true,style:st})});const d=await r.json();
  if(!r.ok){go('land');$('#err').textContent=d.error;return}
  const t=setInterval(async()=>{const j=await(await fetch('/api/projects/'+d.id)).json();job=j;const L=j.steps.map(s=>({label:s.label,state:s.state=='active'?'act':s.state=='done'?'done':'wait'}));
   steps(L,Math.round(L.filter(s=>s.state=='done').length/L.length*100));if(j.meta){$('#pt').textContent=$('#ct').textContent=j.meta.title}
   if(j.status==='done'){clearInterval(t);clips=j.clips;grid();go('clips')}
   if(j.status==='error'){clearInterval(t);go('land');$('#err').textContent='Error: '+j.error}},1500)};
 $$('.top nav a,.top>button,aside a:not([data-go]),.tabs span:not(.on),.sub a,.dash .row a').forEach(e=>e.onclick=()=>toast('Henüz aktif değil: kayıt/giriş ve bu bölüm sonraki sürümde.'));
+$('#file').onchange=e=>$('#fn').textContent=e.target.files[0]?.name||'';
 grid();$('#land').style.display='';$('#shell').classList.remove('on');
 </script></body></html>
