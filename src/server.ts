@@ -60,11 +60,12 @@ const view = (j: Job) => ({
 });
 
 app.post("/api/projects", async (req, res) => {
-  const { url, rightsConfirmed, style } = req.body ?? {};
+  const { url, rightsConfirmed, style, mode } = req.body ?? {};
   if (!rightsConfirmed) return res.status(400).json({ error: "Videoyu işleme hakkına sahip olduğunu onaylamalısın." });
   const ke = keyError(); if (ke) return res.status(500).json({ error: ke });
   const id = randomUUID();
   const job = newJob(id, String(url), (style as CaptionStyle) ?? { name: "bold" }, await storage.dir(id));
+  job.mode = mode === "single" || mode === "montage" ? mode : undefined;
   jobs.set(id, job);
   runPipeline(job, deps);
   res.status(202).json({ id });
@@ -87,6 +88,8 @@ app.post("/api/projects/upload", async (req, res) => {
     await pipe(req, createWriteStream(file));
     const job = newJob(id, name, style, dir);
     job.src = new LocalFileSource(file, path.basename(name, ext));
+    const m = req.header("x-mode");
+    job.mode = m === "single" || m === "montage" ? m : undefined;
     jobs.set(id, job);
     runPipeline(job, deps);
     res.status(202).json({ id });
