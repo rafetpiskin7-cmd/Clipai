@@ -91,7 +91,10 @@ export function pickMontages(plans: ClipPlan[], t: Transcript, duration: number,
   return used;
 }
 
-/** Parçaları art arda birleştirip tek 9:16 video yapar; altyazıyı ve parça numaralarını (#10, #9...) videoya yakar. */
+const THR = () => process.env.FFMPEG_THREADS || "2"; // konteynerde ffmpeg host'un tüm çekirdeklerini görür; bellek için sınırla
+
+/** Parçaları art arda birleştirip tek 9:16 video yapar; altyazıyı ve parça numaralarını (#10, #9...) videoya yakar.
+ *  Her parça sırayla ayrı üretilir (aynı anda tek ffmpeg, düşük bellek), sonra yeniden kodlamadan birleştirilir. */
 export async function renderMontage(opts: {
   source: string; outDir: string; name: string; plan: ClipPlan; transcript: Transcript;
   style: CaptionStyle; crop?: CropStrategy;
@@ -99,39 +102,31 @@ export async function renderMontage(opts: {
   const { source, outDir, name, plan, transcript, style } = opts;
   const parts = plan.segments!;
   const { w, h } = await probeSize(source);
-  const hasAudio = (await run("ffprobe", ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", source])).trim() !== "";
   const crop = (opts.crop ?? new CenterCrop()).filter(w, h, plan.start, plan.end);
-  const args = ["-y"];
-  for (const p of parts) args.push("-ss", p.start.toFixed(2), "-t", (p.end - p.start).toFixed(2), "-i", source);
-  const fc: string[] = [];
-  parts.forEach((_, i) => {
-    fc.push(`[${i}:v]${crop},setsar=1,fps=30[v${i}]`);
-    if (hasAudio) fc.push(`[${i}:a]aresample=44100,asetpts=PTS-STARTPTS[a${i}]`);
-  });
-  fc.push(parts.map((_, i) => `[v${i}]` + (hasAudio ? `[a${i}]` : "")).join("") + `concat=n=${parts.length}:v=1:a=${hasAudio ? 1 : 0}[vc]` + (hasAudio ? "[ac]" : ""));
   const all = transcript.segments.flatMap(s => s.words);
-  const words: Word[] = [], labels: { start: number; end: number; text: string }[] = [];
-  let off = 0;
-  parts.forEach((p, i) => {
-    const d = p.end - p.start;
-    for (const x of all) if (x.start >= p.start - 0.01 && x.end <= p.end + 0.01)
-      words.push({ text: x.text, start: off + Math.max(0, x.start - p.start), end: off + (x.end - p.start) });
-    if (style.numbers !== false && process.env.SHOW_NUMBERS !== "false") labels.push({ start: off, end: off + d, text: p.label ?? String(i + 1) });
-    off += d;
-  });
-  const caps = style.enabled !== false && words.length > 0;
-  let vmap = "[vc]";
-  if (caps || labels.length) {
-    await fs.writeFile(path.join(outDir, `${name}.ass`), new AssCaptionRenderer().toAss(caps ? words : [], style, labels));
-    fc.push(`[vc]ass=${name}.ass[vo]`); vmap = "[vo]";
+  const showNum = style.numbers !== false && process.env.SHOW_NUMBERS !== "false";
+  const files: string[] = [];
+  for (let i = 0; i < parts.length; i++) {
+    const p = parts[i], d = p.end - p.start, pn = `${name}_p${i}`;
+    const words: Word[] = all.filter(x => x.start >= p.start - 0.01 && x.end <= p.end + 0.01)
+      .map(x => ({ text: x.text, start: Math.max(0, x.start - p.start), end: x.end - p.start }));
+    const caps = style.enabled !== false && words.length > 0;
+    const labels = showNum ? [{ start: 0, end: d, text: p.label ?? String(i + 1) }] : [];
+    let vf = `${crop},setsar=1,fps=30`;
+    if (caps || labels.length) {
+      await fs.writeFile(path.join(outDir, `${pn}.ass`), new AssCaptionRenderer().toAss(caps ? words : [], style, labels));
+      vf += `,ass=${pn}.ass`;
+    }
+    await run("ffmpeg", ["-y", "-threads", THR(), "-ss", p.start.toFixed(2), "-t", d.toFixed(2), "-i", source,
+      "-vf", vf, "-threads", THR(), "-c:v", "libx264", "-preset", process.env.FFMPEG_PRESET || "ultrafast", "-crf", process.env.FFMPEG_CRF || "23",
+      "-pix_fmt", "yuv420p", "-c:a", "aac", "-ar", "44100", "-ac", "2", "-b:a", "128k", `${pn}.mp4`], outDir);
+    files.push(`${pn}.mp4`);
   }
-  args.push("-filter_complex", fc.join(";"), "-map", vmap);
-  if (hasAudio) args.push("-map", "[ac]");
-  args.push("-c:v", "libx264", "-preset", process.env.FFMPEG_PRESET || "ultrafast", "-crf", process.env.FFMPEG_CRF || "23", "-pix_fmt", "yuv420p");
-  if (hasAudio) args.push("-c:a", "aac", "-b:a", "128k");
+  await fs.writeFile(path.join(outDir, `${name}_list.txt`), files.map(f => `file '${f}'`).join("\n"));
   const out = `${name}.mp4`;
-  args.push("-movflags", "+faststart", out);
-  await run("ffmpeg", args, outDir);
+  await run("ffmpeg", ["-y", "-f", "concat", "-safe", "0", "-i", `${name}_list.txt`, "-c", "copy", "-movflags", "+faststart", out], outDir);
+  for (const f of files) { await fs.rm(path.join(outDir, f), { force: true }); await fs.rm(path.join(outDir, f.replace(".mp4", ".ass")), { force: true }); }
+  await fs.rm(path.join(outDir, `${name}_list.txt`), { force: true });
   return out;
 }
 
@@ -150,8 +145,8 @@ export async function renderClip(opts: {
     vf += `,ass=${name}.ass`;
   }
   const out = `${name}.mp4`;
-  await run("ffmpeg", ["-y", "-ss", plan.start.toFixed(2), "-t", (plan.end - plan.start).toFixed(2), "-i", source,
-    "-vf", vf, "-c:v", "libx264", "-preset", process.env.FFMPEG_PRESET || "ultrafast", "-crf", process.env.FFMPEG_CRF || "23", "-pix_fmt", "yuv420p",
+  await run("ffmpeg", ["-y", "-threads", THR(), "-ss", plan.start.toFixed(2), "-t", (plan.end - plan.start).toFixed(2), "-i", source,
+    "-vf", vf, "-threads", THR(), "-c:v", "libx264", "-preset", process.env.FFMPEG_PRESET || "ultrafast", "-crf", process.env.FFMPEG_CRF || "23", "-pix_fmt", "yuv420p",
     "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", out], outDir);
   return out;
 }
