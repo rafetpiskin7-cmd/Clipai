@@ -5,6 +5,7 @@ import path from "node:path";
 import { createWriteStream } from "node:fs";
 import { pipeline as pipe } from "node:stream/promises";
 import { LocalFileSource } from "./providers/local.js";
+import { setupAuth } from "./auth.js";
 import { randomUUID } from "node:crypto";
 import { YtDlpSource } from "./providers/youtube.js";
 import { GeminiAnalysis, GeminiTranscription } from "./providers/gemini.js";
@@ -51,6 +52,7 @@ console.log("Transkript sırası:", sttOrder.join(" > ") || "-", "| Analiz sıra
 const jobs = new Map<string, Job>();
 const app = express();
 app.use(express.json());
+setupAuth(app, DATA);
 app.use(express.static(path.resolve("public")));
 app.use("/media", express.static(DATA));
 
@@ -94,6 +96,12 @@ app.post("/api/projects/upload", async (req, res) => {
     runPipeline(job, deps);
     res.status(202).json({ id });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
+app.get("/api/projects/:id/transcript", (req, res) => {
+  const j = jobs.get(req.params.id);
+  if (!j?.transcript) return res.status(404).json({ error: "Transkript yok" });
+  res.json(j.transcript.segments.map(x => ({ start: x.start, end: x.end, text: x.text })));
 });
 
 app.get("/api/projects/:id", (req, res) => {
