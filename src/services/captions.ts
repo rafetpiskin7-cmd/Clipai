@@ -16,7 +16,7 @@ const ALIGN = { bottom: 2, center: 5, top: 8 } as const;
 
 export class AssCaptionRenderer implements CaptionRenderer {
   /** words: klip başlangıcına göre göreli saniyeler. Konuşulan kelime vurgulanır. */
-  toAss(words: Word[], style: CaptionStyle): string {
+  toAss(words: Word[], style: CaptionStyle, labels: { start: number; end: number; text: string }[] = []): string {
     const p = PRESET[style.name] ?? PRESET.bold;
     const font = style.font ?? p.font, size = style.size ?? p.size, color = style.color ?? p.color;
     const al = ALIGN[style.position ?? "bottom"];
@@ -32,6 +32,7 @@ export class AssCaptionRenderer implements CaptionRenderer {
         ev += `Dialogue: 0,${ts(w.start)},${ts(end)},D,,0,0,0,,${txt}\n`;
       });
     }
+    for (const l of labels) ev += `Dialogue: 1,${ts(l.start)},${ts(l.end)},N,,0,0,0,,#${l.text.replace(/^#/, "").replace(/[{}\\]/g, "")}\n`;
     return `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -40,6 +41,7 @@ PlayResY: 1920
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
 Style: D,${font},${size},&H00FFFFFF&,&H00FFFFFF&,&H00000000&,&H80000000&,1,${p.italic},0,0,100,100,0,0,1,${p.outline},1,${al},60,60,220,1
+Style: N,Impact,150,&H0000E5FF&,&H0000E5FF&,&H00000000&,&H80000000&,1,0,0,0,100,100,0,0,1,8,2,7,60,60,150,1
 
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text

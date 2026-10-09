@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { run } from "./shell.js";
 import { AssCaptionRenderer } from "./captions.js";
-import type { CaptionStyle, ClipPlan, CropStrategy, Transcript, Word } from "../providers/types.js";
+import type { CaptionStyle, ClipPart, ClipPlan, CropStrategy, Transcript, Word } from "../providers/types.js";
 
 /** Varsayılan strateji: ortadan 9:16 kırpma. Yüz/konuşmacı takibi için bu arayüzü uygula. */
 export class CenterCrop implements CropStrategy {
@@ -54,6 +54,85 @@ export function fitClip(plan: ClipPlan, t: Transcript, duration: number,
     if (starts.length) start = Math.max(0, starts.reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a) - PAD_S);
   }
   return { ...plan, start, end };
+}
+
+const sumParts = (ps: ClipPart[]) => ps.reduce((a, p) => a + (p.end - p.start), 0);
+
+/** Montaj parçalarını kelime sınırlarına oturtur, uzun/kısa olanları düzeltir, toplamı max saniyeye sığdırır. */
+export function fitMontage(plan: ClipPlan, t: Transcript, duration: number, min: number, max: number): ClipPlan | null {
+  const PMIN = 2, PMAX = 10;
+  let parts: ClipPart[] = (plan.segments ?? []).map(p => {
+    const sn = snapToWords({ ...plan, start: p.start, end: p.end }, t, duration);
+    return { start: sn.start, end: Math.min(sn.end, sn.start + PMAX), label: p.label };
+  }).filter(p => p.end - p.start >= PMIN);
+  const kept: ClipPart[] = [];
+  for (const p of parts) if (kept.every(k => Math.min(k.end, p.end) - Math.max(k.start, p.start) < 0.5)) kept.push(p);
+  parts = kept;
+  if (sumParts(parts) > max) {
+    const f = max / sumParts(parts);
+    parts = parts.map(p => ({ ...p, end: p.start + Math.max(PMIN, (p.end - p.start) * f) }));
+    while (parts.length > 2 && sumParts(parts) > max + 1) parts.pop();
+  }
+  if (parts.length < 2 || sumParts(parts) < Math.min(min * 0.6, 20)) return null;
+  return { ...plan, segments: parts, start: Math.min(...parts.map(p => p.start)), end: Math.max(...parts.map(p => p.end)) };
+}
+
+/** Özet kurgularını hazırlar: parçaları oturtur, örtüşen kurguları eler, en yüksek puanlı `count` tanesini döndürür. */
+export function pickMontages(plans: ClipPlan[], t: Transcript, duration: number, min: number, max: number, count: number): ClipPlan[] {
+  const fitted = plans.map(p => fitMontage(p, t, duration, min, max)).filter((p): p is ClipPlan => !!p)
+    .sort((a, b) => b.viralScore - a.viralScore);
+  const shared = (a: ClipPlan, b: ClipPlan) => (a.segments ?? []).reduce((s, x) =>
+    s + (b.segments ?? []).reduce((q, y) => q + Math.max(0, Math.min(x.end, y.end) - Math.max(x.start, y.start)), 0), 0);
+  const used: ClipPlan[] = [];
+  for (const p of fitted) {
+    if (used.every(u => shared(p, u) < 0.4 * Math.min(sumParts(p.segments!), sumParts(u.segments!)))) used.push(p);
+    if (used.length >= count) break;
+  }
+  return used;
+}
+
+/** Parçaları art arda birleştirip tek 9:16 video yapar; altyazıyı ve parça numaralarını (#10, #9...) videoya yakar. */
+export async function renderMontage(opts: {
+  source: string; outDir: string; name: string; plan: ClipPlan; transcript: Transcript;
+  style: CaptionStyle; crop?: CropStrategy;
+}): Promise<string> {
+  const { source, outDir, name, plan, transcript, style } = opts;
+  const parts = plan.segments!;
+  const { w, h } = await probeSize(source);
+  const hasAudio = (await run("ffprobe", ["-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", source])).trim() !== "";
+  const crop = (opts.crop ?? new CenterCrop()).filter(w, h, plan.start, plan.end);
+  const args = ["-y"];
+  for (const p of parts) args.push("-ss", p.start.toFixed(2), "-t", (p.end - p.start).toFixed(2), "-i", source);
+  const fc: string[] = [];
+  parts.forEach((_, i) => {
+    fc.push(`[${i}:v]${crop},setsar=1,fps=30[v${i}]`);
+    if (hasAudio) fc.push(`[${i}:a]aresample=44100,asetpts=PTS-STARTPTS[a${i}]`);
+  });
+  fc.push(parts.map((_, i) => `[v${i}]` + (hasAudio ? `[a${i}]` : "")).join("") + `concat=n=${parts.length}:v=1:a=${hasAudio ? 1 : 0}[vc]` + (hasAudio ? "[ac]" : ""));
+  const all = transcript.segments.flatMap(s => s.words);
+  const words: Word[] = [], labels: { start: number; end: number; text: string }[] = [];
+  let off = 0;
+  parts.forEach((p, i) => {
+    const d = p.end - p.start;
+    for (const x of all) if (x.start >= p.start - 0.01 && x.end <= p.end + 0.01)
+      words.push({ text: x.text, start: off + Math.max(0, x.start - p.start), end: off + (x.end - p.start) });
+    if (style.numbers !== false && process.env.SHOW_NUMBERS !== "false") labels.push({ start: off, end: off + d, text: p.label ?? String(i + 1) });
+    off += d;
+  });
+  const caps = style.enabled !== false && words.length > 0;
+  let vmap = "[vc]";
+  if (caps || labels.length) {
+    await fs.writeFile(path.join(outDir, `${name}.ass`), new AssCaptionRenderer().toAss(caps ? words : [], style, labels));
+    fc.push(`[vc]ass=${name}.ass[vo]`); vmap = "[vo]";
+  }
+  args.push("-filter_complex", fc.join(";"), "-map", vmap);
+  if (hasAudio) args.push("-map", "[ac]");
+  args.push("-c:v", "libx264", "-preset", process.env.FFMPEG_PRESET || "ultrafast", "-crf", process.env.FFMPEG_CRF || "23", "-pix_fmt", "yuv420p");
+  if (hasAudio) args.push("-c:a", "aac", "-b:a", "128k");
+  const out = `${name}.mp4`;
+  args.push("-movflags", "+faststart", out);
+  await run("ffmpeg", args, outDir);
+  return out;
 }
 
 export async function renderClip(opts: {
