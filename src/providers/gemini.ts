@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { GoogleGenAI, createPartFromUri } from "@google/genai";
 import { run } from "../services/shell.js";
-import type { AIAnalysisProvider, ClipPlan, Segment, Transcript, TranscriptionProvider, VideoMeta, Word } from "./types.js";
+import type { AIAnalysisProvider, ClipMode, ClipPlan, Segment, Transcript, TranscriptionProvider, VideoMeta, Word } from "./types.js";
 
 const CHUNK_SEC = 1200; // kelime zaman damgası açıkken ses başına limit 30 dk; 20 dk'lık parçalara böleriz
 
@@ -97,9 +97,24 @@ export class GeminiTranscription implements TranscriptionProvider {
   }
 }
 
-export function analysisPrompt(t: Transcript, meta: VideoMeta): string {
+function montagePrompt(title: string, lines: string, minS: number, maxS: number, maxClips: number): string {
+  return `Aşağıda "${title}" videosunun zaman damgalı transkripti var (saniye cinsinden). Transkript sadece konuşmadır; sessiz görsel anlar görünmez, bu yüzden yorumcunun heyecanlandığı yerleri (bağırma, "inanılmaz", sıra/numara duyurusu, vurgu, tepki) ipucu say.
+Amaç: videonun EN ÖNEMLİ ve EN ETKİLİ anlarını seçip tek bir kısa videoda art arda birleştirmek (özet / highlight kurgusu). Tek bir yerden uzun parça KESME.
+En fazla ${maxClips} kısa video öner. Her kısa video 4-10 PARÇADAN oluşsun; her parça 3-8 saniye; parçaların TOPLAM süresi ${minS}-${maxS} saniye olsun.
+Her parça kendi içinde anlaşılır olsun, cümle veya an ortasında kesilmesin. Parçaları videodaki sırayla ver (start artan sırada).
+Her parçaya kısa bir "label" yaz: videoda sıralama/numara varsa (ör. "en iyi 10": 10, 9, 8...) o numarayı, yoksa 1, 2, 3... sırasını yaz.
+Başlık/hook/açıklama transkriptin dilinde olsun.
+SADECE JSON dizisi döndür:
+[{"title":"","viralScore":0-100,"hook":"","reason":"","description":"","hashtags":["#..."],"segments":[{"start":0,"end":0,"label":"1"}]}]
+
+TRANSKRİPT:
+${lines}`;
+}
+
+export function analysisPrompt(t: Transcript, meta: VideoMeta, mode: ClipMode = "single"): string {
   const minS = Number(process.env.CLIP_MIN_SEC) || 40, maxS = Number(process.env.CLIP_MAX_SEC) || 50, maxClips = Number(process.env.MAX_CLIPS) || 5;
   const lines = t.segments.map(s => `[${s.start.toFixed(1)}-${s.end.toFixed(1)}] ${s.text}`).join("\n");
+  if (mode === "montage") return montagePrompt(meta.title, lines, minS, maxS, maxClips);
   return `Aşağıda "${meta.title}" videosunun zaman damgalı transkripti var (saniye cinsinden).
 Videoyu sabit aralıklarla bölme. Kendi başına anlamlı, en fazla ${maxClips} klip seç. HER KLİP ${minS} ile ${maxS} saniye arasında olmalı (end - start en az ${minS}, en fazla ${maxS}); daha kısa veya daha uzun klip verme. Cümle ortasında kesme.
 Ölçütler: güçlü giriş, şaşırtıcı bilgi, duygusal an, tartışmalı ifade, faydalı bilgi, komik an, hikaye doruğu, merak, güçlü son.
@@ -116,7 +131,7 @@ const FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3-flash-preview", "gemini-2
 export class GeminiAnalysis implements AIAnalysisProvider {
   private ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   /** Önce GEMINI_ANALYSIS_MODEL (virgülle birden fazla olabilir), sonra yedek modeller. */
-  async findClips(t: Transcript, meta: VideoMeta): Promise<ClipPlan[]> {
+  async findClips(t: Transcript, meta: VideoMeta, mode: ClipMode = "single"): Promise<ClipPlan[]> {
     const wanted = (process.env.GEMINI_ANALYSIS_MODEL || "").split(",").map(x => x.trim()).filter(Boolean);
     const models = [...new Set([...wanted, ...FALLBACK_MODELS])];
     let last: any;
@@ -125,7 +140,7 @@ export class GeminiAnalysis implements AIAnalysisProvider {
       if (Date.now() > deadline) break;
       try {
         const res = await withRetry(() => this.ai.models.generateContent({
-          model, contents: analysisPrompt(t, meta), config: { responseMimeType: "application/json", httpOptions: { timeout: llmTimeout() } },
+          model, contents: analysisPrompt(t, meta, mode), config: { responseMimeType: "application/json", httpOptions: { timeout: llmTimeout() } },
         }), 2);
         const m = (res.text ?? "").match(/\[[\s\S]*\]/);
         if (!m) throw new Error("Gemini geçerli JSON döndürmedi.");

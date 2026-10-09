@@ -1,5 +1,5 @@
 import { withRetry, analysisPrompt, llmTimeout } from "./gemini.js";
-import type { AIAnalysisProvider, ClipPlan, Segment, Transcript, TranscriptionProvider, VideoMeta } from "./types.js";
+import type { AIAnalysisProvider, ClipMode, ClipPart, ClipPlan, Segment, Transcript, TranscriptionProvider, VideoMeta } from "./types.js";
 
 const msg = (e: any) => String(e?.message ?? e).slice(0, 220);
 
@@ -16,24 +16,31 @@ export class ChainTranscription implements TranscriptionProvider {
   }
 }
 
-/** LLM çıktısındaki metin/sayı karışıklıklarını düzeltir, geçersiz klipleri atar. */
+/** LLM çıktısındaki metin/sayı karışıklıklarını düzeltir, geçersiz klipleri atar. Montaj parçalarını korur. */
 export function normalizeClips(raw: any[]): ClipPlan[] {
-  return (Array.isArray(raw) ? raw : []).map(c => ({
-    title: String(c?.title ?? "").trim() || "Klip",
-    start: Number(c?.start), end: Number(c?.end),
-    viralScore: Math.max(0, Math.min(100, Math.round(Number(c?.viralScore) || 0))),
-    hook: String(c?.hook ?? ""), reason: String(c?.reason ?? ""), description: String(c?.description ?? ""),
-    hashtags: Array.isArray(c?.hashtags) ? c.hashtags.map(String) : [],
-  })).filter(c => Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start);
+  return (Array.isArray(raw) ? raw : []).map(c => {
+    const segs: ClipPart[] = (Array.isArray(c?.segments) ? c.segments : [])
+      .map((x: any) => ({ start: Number(x?.start), end: Number(x?.end), label: x?.label !== undefined && x?.label !== null ? String(x.label) : undefined }))
+      .filter((x: ClipPart) => Number.isFinite(x.start) && Number.isFinite(x.end) && x.end > x.start);
+    return {
+      title: String(c?.title ?? "").trim() || "Klip",
+      start: segs.length ? Math.min(...segs.map(x => x.start)) : Number(c?.start),
+      end: segs.length ? Math.max(...segs.map(x => x.end)) : Number(c?.end),
+      viralScore: Math.max(0, Math.min(100, Math.round(Number(c?.viralScore) || 0))),
+      hook: String(c?.hook ?? ""), reason: String(c?.reason ?? ""), description: String(c?.description ?? ""),
+      hashtags: Array.isArray(c?.hashtags) ? c.hashtags.map(String) : [],
+      segments: segs.length ? segs : undefined,
+    } as ClipPlan;
+  }).filter(c => Number.isFinite(c.start) && Number.isFinite(c.end) && c.end > c.start);
 }
 
 export class ChainAnalysis implements AIAnalysisProvider {
   constructor(private ps: { name: string; p: AIAnalysisProvider }[]) {}
-  async findClips(t: Transcript, meta: VideoMeta): Promise<ClipPlan[]> {
+  async findClips(t: Transcript, meta: VideoMeta, mode: ClipMode = "single"): Promise<ClipPlan[]> {
     const errs: string[] = [];
     for (const { name, p } of this.ps) {
       try {
-        const clips = normalizeClips(await p.findClips(t, meta));
+        const clips = normalizeClips(await p.findClips(t, meta, mode));
         if (clips.length) return clips;
         errs.push(`${name}: geçerli klip yok`);
       } catch (e) { errs.push(`${name}: ${msg(e)}`); }
@@ -70,14 +77,14 @@ export class OpenAICompatAnalysis implements AIAnalysisProvider {
     return j.choices?.[0]?.message?.content ?? "";
   }
 
-  async findClips(t: Transcript, meta: VideoMeta): Promise<ClipPlan[]> {
+  async findClips(t: Transcript, meta: VideoMeta, mode: ClipMode = "single"): Promise<ClipPlan[]> {
     const chunks = chunkTranscript(t, Number(process.env.LLM_CHUNK_CHARS) || 12000);
     let last: any;
     for (const model of this.models) {
       try {
         const all: any[] = [];
         for (const c of chunks) {
-          const text = await withRetry(() => this.chat(model, analysisPrompt(c, meta)));
+          const text = await withRetry(() => this.chat(model, analysisPrompt(c, meta, mode)));
           const m = text.match(/\[[\s\S]*\]/);
           if (!m) throw new Error("geçerli JSON döndürmedi");
           all.push(...JSON.parse(m[0]));
